@@ -16,7 +16,7 @@ fn fn_once() {
     }
 
     let val = 32.0;
-    accept_closure(move |value| debug_assert_eq!(value, val))
+    accept_closure(move |value| assert_eq!(value, val))
 }
 
 #[test]
@@ -32,7 +32,7 @@ fn fn_ref() {
     }
 
     let expected = 32.0;
-    accept_closure(|value| debug_assert_eq!(value, expected))
+    accept_closure(|value| assert_eq!(value, expected))
 }
 
 #[test]
@@ -52,20 +52,5 @@ fn fn_mut() {
         works = Some(value == 32.0)
     });
 
-    debug_assert_eq!(works, Some(true));
+    assert_eq!(works, Some(true));
 }
-
-/*#[test]
-fn fn_once_generic() {
-
-    #[closurize]
-    trait Consumer<T> {
-        fn consume<F: Fn()>(self, value: T, fun: F) where T: Clone;
-    }
-
-    fn accept_closure(closure: impl Consumer<f32>) {
-        closure.consume(32.0, || println!("worked"));
-    }
-
-    accept_closure(|value| debug_assert_eq!(value, 32.0))
-}*/
