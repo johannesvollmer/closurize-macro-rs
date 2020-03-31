@@ -4,7 +4,8 @@ extern crate proc_macro;
 use crate::proc_macro::TokenStream;
 use quote::quote;
 
-use syn::{parse_macro_input, ItemTrait, TraitItem, TraitItemMethod, FnArg, Type, Ident, GenericParam};
+use syn::*;
+use syn::export::Span;
 
 
 #[proc_macro_attribute]
@@ -53,14 +54,47 @@ pub fn closurize(_args: TokenStream, mut item: TokenStream) -> TokenStream {
     let trait_generics: Vec<GenericParam> = type_args.into_iter().collect();
     let constraint = trait_definition.generics.where_clause;
     let trait_name = trait_definition.ident;
+    let ret_expr = &method.sig.output;
+    let fn_name = &method.sig.ident;
+
+    let (receiver, closure_type) = match &method.sig.inputs[0] {
+        FnArg::Receiver(receiver) => {
+            (receiver.clone(), match &receiver.reference {
+                Some(_) if receiver.mutability.is_some() => "FnMut",
+                Some(_) => "Fn",
+                None => "FnOnce",
+            })
+        },
+        _ => unreachable!("first arg is not self")
+    };
+
+    let closure_type = Ident::new(closure_type, Span::call_site());
+    let trait_generics = quote! { #(#trait_generics),* };
+    let fn_param_types = quote! { #(#fn_param_types),* };
+    let fn_params = quote! { #(#self_parameters),* };
+    let fn_args = quote! { #(#fn_param_names),* };
+
+
+    // TODO fn generics? lifetimes???
+    // TODO fn where clause?
+    // TODO Fn, FnMut
+    // TODO unsafe, async
+    // TODO trait types
+
+    // TEST return type
+
 
     let output: TokenStream = quote! {
 
-        impl<F, #(#trait_generics),*>
-            #trait_name < #(#trait_generics),* > for F
-            where F: FnOnce( #(#fn_param_types),* ), #constraint
+        impl<F, #trait_generics>
+            #trait_name < #trait_generics > for F
+            where
+                F: #closure_type ( #fn_param_types ) #ret_expr,
+                #constraint
         {
-            #[inline] fn consume(self, #(#self_parameters),* ) { self( #(#fn_param_names),* ) }
+            #[inline] fn #fn_name (#receiver, #fn_params ) #ret_expr {
+                self( #fn_args )
+            }
         }
     }.into();
 
